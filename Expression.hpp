@@ -61,6 +61,11 @@ namespace molly
                 expression::terminal<T>,
                 expression::reference<T>> MemberType;
         };
+        template<typename T, std::size_t N>
+        struct ExprTraits<T[N]>
+        {
+            typedef expression::reference<const T[N]> MemberType;
+        };
         template<typename T>
         struct ExprTraits<T &>
         {
@@ -455,7 +460,7 @@ namespace molly
             typedef argument<N> ClassType;
             
             template<typename Arg1, typename... Args>
-            auto operator()(const Arg1 &, const Args &... args)
+            auto operator()(const Arg1 &, const Args &... args) const
             {
                 return argument<N - 1>()(args...);
             }
@@ -468,7 +473,7 @@ namespace molly
             typedef argument<1> ClassType;
             
             template<typename Arg1, typename... Args>
-            auto operator()(const Arg1 &arg1, const Args &...)
+            auto operator()(const Arg1 &arg1, const Args &...) const
             -> std::conditional_t<std::is_copy_constructible<Arg1>::value, Arg1, Arg1&>
             {
                 return arg1;
@@ -502,7 +507,7 @@ namespace molly
             {}
             
             template<typename... Args>
-            T operator()(const Args &...)
+            T operator()(const Args &...) const
             {
                 return obj;
             }
@@ -526,7 +531,7 @@ namespace molly
             {}
             
             template<typename... Args>
-            T& operator()(const Args &...)
+            T& operator()(const Args &...) const
             {
                 return ref;
             }
