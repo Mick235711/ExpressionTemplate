@@ -28,7 +28,23 @@ DEFINE_MEMBER_BINARY_OP(|=, bitwise_or_assign, ClassType) \
 DEFINE_MEMBER_BINARY_OP(^=, bitwise_xor_assign, ClassType) \
 DEFINE_MEMBER_BINARY_OP(<<=, shift_left_assign, ClassType) \
 DEFINE_MEMBER_BINARY_OP(>>=, shift_right_assign, ClassType) \
-DEFINE_MEMBER_BINARY_OP([], subscript_access, ClassType)
+DEFINE_MEMBER_BINARY_OP([], subscript_access, ClassType) \
+auto operator ++() \
+{ \
+    return UnaryExpr<expression::pre_increment_tag, ClassType>(*this); \
+} \
+auto operator --() \
+{ \
+    return UnaryExpr<expression::pre_decrement_tag, ClassType>(*this); \
+} \
+auto operator ++(int) \
+{ \
+    return UnaryExpr<expression::post_increment_tag, ClassType>(*this); \
+} \
+auto operator --(int) \
+{ \
+    return UnaryExpr<expression::post_decrement_tag, ClassType>(*this); \
+}
 
 namespace molly
 {
@@ -238,6 +254,7 @@ namespace molly
         DEFINE_BINARY_EXPR_TAG(logical_or, auto, (const T& t, const U& u), return t || u);
         DEFINE_BINARY_EXPR_TAG(subscript_access, auto, (const T& t, const U& u), return t[u]);
         DEFINE_BINARY_EXPR_TAG(member_pointer_access, auto, (const T& t, const U& u), return t->*u);
+        DEFINE_BINARY_EXPR_TAG(comma, const auto&, (const T& t, const U& u), return u);
         
         // ternary
         DEFINE_TERNARY_EXPR_TAG(ternary, auto, (const T& t, const U& u, const V& v), return t ? u : v);
@@ -550,16 +567,31 @@ namespace molly
     {
         return expression::terminal<T>(t);
     }
+    template<typename T, std::size_t N>
+    expression::reference<const T[N]> val(T (&t)[N])
+    {
+        return expression::reference<const T[N]>(t);
+    };
     template<typename T>
     expression::reference<T> ref(T& t)
     {
         return expression::reference<T>(t);
     }
+    template<typename T, std::size_t N>
+    expression::reference<const T[N]> ref(T (&t)[N])
+    {
+        return expression::reference<const T[N]>(t);
+    };
     template<typename T>
     expression::reference<const T> cref(const T& t)
     {
         return expression::reference<const T>(t);
     }
+    template<typename T, std::size_t N>
+    expression::reference<const T[N]> cref(T (&t)[N])
+    {
+        return expression::reference<const T[N]>(t);
+    };
     
     namespace operators
     {
@@ -610,8 +642,8 @@ namespace molly
         DEFINE_UNARY_OP_REFONLY(op, tag_name)
         DEFINE_UNARY_OP(+, positive);
         DEFINE_UNARY_OP(-, negative);
-        DEFINE_UNARY_OP_REFONLY(++, pre_increment);
-        DEFINE_UNARY_OP_REFONLY(--, pre_decrement);
+        //DEFINE_UNARY_OP_REFONLY(++, pre_increment);
+        //DEFINE_UNARY_OP_REFONLY(--, pre_decrement);
         DEFINE_UNARY_OP(*, dereference);
         DEFINE_UNARY_OP(&, address_of);
         DEFINE_UNARY_OP(~, bitwise_not);
@@ -725,164 +757,244 @@ namespace molly
         //DEFINE_BINARY_OP([], subscript_access);
         DEFINE_BINARY_OP(->*, member_pointer_access);
         template<typename T, typename U>
+        auto operator ,(const expression::reference<T> & t, const U & u)
+        {
+            return BinaryExpr<expression::comma_tag, expression::reference<T>, typename detail::ExprTraits<U>::MemberType>(t, u);
+        }
+        template<size_t N, typename U>
+        auto operator ,(const arg_names::argument<N> & t, const U & u)
+        {
+            return BinaryExpr<expression::comma_tag, const arg_names::argument<N>, typename detail::ExprTraits<U>::MemberType>(t, u);
+        }
+        template<typename Tag, typename C0Type, typename U>
+        auto operator ,(const UnaryExpr<Tag, C0Type> & t, const U & u)
+        {
+            return BinaryExpr<expression::comma_tag, UnaryExpr<Tag, C0Type>, typename detail::ExprTraits<U>::MemberType>(t, u);
+        }
+        template<typename Tag, typename C0Type, typename C1Type, typename U>
+        auto operator ,(const BinaryExpr<Tag, C0Type, C1Type> & t, const U & u)
+        {
+            return BinaryExpr<expression::comma_tag, BinaryExpr<Tag, C0Type, C1Type>, typename detail::ExprTraits<U>::MemberType>(t, u);
+        }
+        template<typename Tag, typename C0Type, typename C1Type, typename C2Type, typename U>
+        auto operator ,(const TernaryExpr<Tag, C0Type, C1Type, C2Type> & t, const U & u)
+        {
+            return BinaryExpr<expression::comma_tag, TernaryExpr<Tag, C0Type, C1Type, C2Type>, typename detail::ExprTraits<U>::MemberType>(t, u);
+        }
+        template<typename Tag, typename C0Type, typename C1Type, typename C2Type, typename C3Type, typename U>
+        auto operator ,(const FourArgExpr<Tag, C0Type, C1Type, C2Type, C3Type> & t, const U & u)
+        {
+            return BinaryExpr<expression::comma_tag, FourArgExpr<Tag, C0Type, C1Type, C2Type, C3Type>, typename detail::ExprTraits<U>::MemberType>(t, u);
+        }
+        template<typename Tag, typename... CTypes, typename U>
+        auto operator ,(const NArgExpr<Tag, CTypes...> & t, const U & u)
+        {
+            return BinaryExpr<expression::comma_tag, NArgExpr<Tag, CTypes...>, typename detail::ExprTraits<U>::MemberType>(t, u);
+        }
+        template<typename T, typename U>
+        auto operator ,(const expression::terminal<T> & t, const U & u)
+        {
+            return BinaryExpr<expression::comma_tag, expression::terminal<T>, typename detail::ExprTraits<U>::MemberType>(t, u);
+        }
+        template<typename T, typename U>
+        auto operator ,(U & u, const expression::terminal<T> & t)
+        {
+            return BinaryExpr<expression::comma_tag, typename detail::ExprTraits<U>::MemberType, expression::terminal<T>>(u, t);
+        }
+        template<typename T, typename U>
+        auto operator ,(U & u, const expression::reference<T> & t)
+        {
+            return BinaryExpr<expression::comma_tag, typename detail::ExprTraits<U>::MemberType, expression::reference<T>>(u, t);
+        }
+        template<size_t N, typename U>
+        auto operator ,(U & u, const arg_names::argument<N> & t)
+        {
+            return BinaryExpr<expression::comma_tag, typename detail::ExprTraits<U>::MemberType, arg_names::argument<N>>(u, t);
+        }
+        template<typename Tag, typename C0Type, typename U>
+        auto operator ,(U & u, const UnaryExpr<Tag, C0Type> & t)
+        {
+            return BinaryExpr<expression::comma_tag, typename detail::ExprTraits<U>::MemberType, UnaryExpr<Tag, C0Type>>(u, t);
+        }
+        template<typename Tag, typename C0Type, typename C1Type, typename U>
+        auto operator ,(U & u, const BinaryExpr<Tag, C0Type, C1Type> & t)
+        {
+            return BinaryExpr<expression::comma_tag, typename detail::ExprTraits<U>::MemberType, BinaryExpr<Tag, C0Type, C1Type>>(u, t);
+        }
+        template<typename Tag, typename C0Type, typename C1Type, typename C2Type, typename U>
+        auto operator ,(U & u, const TernaryExpr<Tag, C0Type, C1Type, C2Type> & t)
+        {
+            return BinaryExpr<expression::comma_tag, typename detail::ExprTraits<U>::MemberType, TernaryExpr<Tag, C0Type, C1Type, C2Type>>(u, t);
+        }
+        template<typename Tag, typename C0Type, typename C1Type, typename C2Type, typename C3Type, typename U>
+        auto operator ,(U & u, const FourArgExpr<Tag, C0Type, C1Type, C2Type, C3Type> & t)
+        {
+            return BinaryExpr<expression::comma_tag, typename detail::ExprTraits<U>::MemberType, FourArgExpr<Tag, C0Type, C1Type, C2Type, C3Type>>(u, t);
+        }
+        template<typename Tag, typename... CTypes, typename U>
+        auto operator ,(U & u, const NArgExpr<Tag, CTypes...> & t)
+        {
+            return BinaryExpr<expression::comma_tag, typename detail::ExprTraits<U>::MemberType, NArgExpr<Tag, CTypes...>>(u, t);
+        }
+        template<typename T, typename U>
         auto operator <<(const expression::reference<T> & t, const U & u)
         {
-            return BinaryExpr<expression::shift_left_tag, expression::reference<T>, typename detail::ExprTraits<U>::MemberType>(t, u); \
+            return BinaryExpr<expression::shift_left_tag, expression::reference<T>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
         template<size_t N, typename U>
         auto operator <<(const arg_names::argument<N> & t, const U & u)
         {
-            return BinaryExpr<expression::shift_left_tag, const arg_names::argument<N>, typename detail::ExprTraits<U>::MemberType>(t, u); \
+            return BinaryExpr<expression::shift_left_tag, const arg_names::argument<N>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
         template<typename Tag, typename C0Type, typename U>
         auto operator <<(const UnaryExpr<Tag, C0Type> & t, const U & u)
         {
-            return BinaryExpr<expression::shift_left_tag, UnaryExpr<Tag, C0Type>, typename detail::ExprTraits<U>::MemberType>(t, u); \
+            return BinaryExpr<expression::shift_left_tag, UnaryExpr<Tag, C0Type>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
         template<typename Tag, typename C0Type, typename C1Type, typename U>
         auto operator <<(const BinaryExpr<Tag, C0Type, C1Type> & t, const U & u)
         {
-            return BinaryExpr<expression::shift_left_tag, BinaryExpr<Tag, C0Type, C1Type>, typename detail::ExprTraits<U>::MemberType>(t, u); \
+            return BinaryExpr<expression::shift_left_tag, BinaryExpr<Tag, C0Type, C1Type>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
         template<typename Tag, typename C0Type, typename C1Type, typename C2Type, typename U>
         auto operator <<(const TernaryExpr<Tag, C0Type, C1Type, C2Type> & t, const U & u)
         {
-            return BinaryExpr<expression::shift_left_tag, TernaryExpr<Tag, C0Type, C1Type, C2Type>, typename detail::ExprTraits<U>::MemberType>(t, u); \
+            return BinaryExpr<expression::shift_left_tag, TernaryExpr<Tag, C0Type, C1Type, C2Type>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
         template<typename Tag, typename C0Type, typename C1Type, typename C2Type, typename C3Type, typename U>
         auto operator <<(const FourArgExpr<Tag, C0Type, C1Type, C2Type, C3Type> & t, const U & u)
         {
-            return BinaryExpr<expression::shift_left_tag, FourArgExpr<Tag, C0Type, C1Type, C2Type, C3Type>, typename detail::ExprTraits<U>::MemberType>(t, u); \
+            return BinaryExpr<expression::shift_left_tag, FourArgExpr<Tag, C0Type, C1Type, C2Type, C3Type>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
         template<typename Tag, typename... CTypes, typename U>
         auto operator <<(const NArgExpr<Tag, CTypes...> & t, const U & u)
         {
-            return BinaryExpr<expression::shift_left_tag, NArgExpr<Tag, CTypes...>, typename detail::ExprTraits<U>::MemberType>(t, u); \
+            return BinaryExpr<expression::shift_left_tag, NArgExpr<Tag, CTypes...>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
         template<typename T, typename U>
         auto operator <<(const expression::terminal<T> & t, const U & u)
         {
-            return BinaryExpr<expression::shift_left_tag, expression::terminal<T>, typename detail::ExprTraits<U>::MemberType>(t, u); \
+            return BinaryExpr<expression::shift_left_tag, expression::terminal<T>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
         template<typename T, typename U>
         auto operator <<(U & u, const expression::terminal<T> & t)
         {
-            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, expression::terminal<T>>(u, t); \
+            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, expression::terminal<T>>(u, t);
         }
         template<typename T, typename U>
         auto operator <<(U & u, const expression::reference<T> & t)
         {
-            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, expression::reference<T>>(u, t); \
+            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, expression::reference<T>>(u, t);
         }
         template<size_t N, typename U>
         auto operator <<(U & u, const arg_names::argument<N> & t)
         {
-            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, arg_names::argument<N>>(u, t); \
+            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, arg_names::argument<N>>(u, t);
         }
         template<typename Tag, typename C0Type, typename U>
         auto operator <<(U & u, const UnaryExpr<Tag, C0Type> & t)
         {
-            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, UnaryExpr<Tag, C0Type>>(u, t); \
+            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, UnaryExpr<Tag, C0Type>>(u, t);
         }
         template<typename Tag, typename C0Type, typename C1Type, typename U>
         auto operator <<(U & u, const BinaryExpr<Tag, C0Type, C1Type> & t)
         {
-            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, BinaryExpr<Tag, C0Type, C1Type>>(u, t); \
+            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, BinaryExpr<Tag, C0Type, C1Type>>(u, t);
         }
         template<typename Tag, typename C0Type, typename C1Type, typename C2Type, typename U>
         auto operator <<(U & u, const TernaryExpr<Tag, C0Type, C1Type, C2Type> & t)
         {
-            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, TernaryExpr<Tag, C0Type, C1Type, C2Type>>(u, t); \
+            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, TernaryExpr<Tag, C0Type, C1Type, C2Type>>(u, t);
         }
         template<typename Tag, typename C0Type, typename C1Type, typename C2Type, typename C3Type, typename U>
         auto operator <<(U & u, const FourArgExpr<Tag, C0Type, C1Type, C2Type, C3Type> & t)
         {
-            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, FourArgExpr<Tag, C0Type, C1Type, C2Type, C3Type>>(u, t); \
+            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, FourArgExpr<Tag, C0Type, C1Type, C2Type, C3Type>>(u, t);
         }
         template<typename Tag, typename... CTypes, typename U>
         auto operator <<(U & u, const NArgExpr<Tag, CTypes...> & t)
         {
-            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, NArgExpr<Tag, CTypes...>>(u, t); \
+            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, NArgExpr<Tag, CTypes...>>(u, t);
         }
         template<typename T, typename U>
         auto operator >>(const expression::reference<T> & t, U & u)
         {
-            return BinaryExpr<expression::shift_left_tag, expression::reference<T>, typename detail::ExprTraits<U>::MemberType>(t, u); \
+            return BinaryExpr<expression::shift_left_tag, expression::reference<T>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
         template<size_t N, typename U>
         auto operator >>(const arg_names::argument<N> & t, U & u)
         {
-            return BinaryExpr<expression::shift_left_tag, const arg_names::argument<N>, typename detail::ExprTraits<U>::MemberType>(t, u); \
+            return BinaryExpr<expression::shift_left_tag, const arg_names::argument<N>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
         template<typename Tag, typename C0Type, typename U>
         auto operator >>(const UnaryExpr<Tag, C0Type> & t, U & u)
         {
-            return BinaryExpr<expression::shift_left_tag, UnaryExpr<Tag, C0Type>, typename detail::ExprTraits<U>::MemberType>(t, u); \
+            return BinaryExpr<expression::shift_left_tag, UnaryExpr<Tag, C0Type>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
         template<typename Tag, typename C0Type, typename C1Type, typename U>
         auto operator >>(const BinaryExpr<Tag, C0Type, C1Type> & t, U & u)
         {
-            return BinaryExpr<expression::shift_left_tag, BinaryExpr<Tag, C0Type, C1Type>, typename detail::ExprTraits<U>::MemberType>(t, u); \
+            return BinaryExpr<expression::shift_left_tag, BinaryExpr<Tag, C0Type, C1Type>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
         template<typename Tag, typename C0Type, typename C1Type, typename C2Type, typename U>
         auto operator >>(const TernaryExpr<Tag, C0Type, C1Type, C2Type> & t, U & u)
         {
-            return BinaryExpr<expression::shift_left_tag, TernaryExpr<Tag, C0Type, C1Type, C2Type>, typename detail::ExprTraits<U>::MemberType>(t, u); \
+            return BinaryExpr<expression::shift_left_tag, TernaryExpr<Tag, C0Type, C1Type, C2Type>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
         template<typename Tag, typename C0Type, typename C1Type, typename C2Type, typename C3Type, typename U>
         auto operator >>(const FourArgExpr<Tag, C0Type, C1Type, C2Type, C3Type> & t, U & u)
         {
-            return BinaryExpr<expression::shift_left_tag, FourArgExpr<Tag, C0Type, C1Type, C2Type, C3Type>, typename detail::ExprTraits<U>::MemberType>(t, u); \
+            return BinaryExpr<expression::shift_left_tag, FourArgExpr<Tag, C0Type, C1Type, C2Type, C3Type>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
         template<typename Tag, typename... CTypes, typename U>
         auto operator >>(const NArgExpr<Tag, CTypes...> & t, U & u)
         {
-            return BinaryExpr<expression::shift_left_tag, NArgExpr<Tag, CTypes...>, typename detail::ExprTraits<U>::MemberType>(t, u); \
+            return BinaryExpr<expression::shift_left_tag, NArgExpr<Tag, CTypes...>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
         template<typename T, typename U>
         auto operator >>(const expression::terminal<T> & t, U & u)
         {
-            return BinaryExpr<expression::shift_left_tag, expression::terminal<T>, typename detail::ExprTraits<U>::MemberType>(t, u); \
+            return BinaryExpr<expression::shift_left_tag, expression::terminal<T>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
         template<typename T, typename U>
         auto operator >>(U & u, const expression::terminal<T> & t)
         {
-            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, expression::terminal<T>>(u, t); \
+            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, expression::terminal<T>>(u, t);
         }
         template<typename T, typename U>
         auto operator >>(U & u, const expression::reference<T> & t)
         {
-            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, expression::reference<T>>(u, t); \
+            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, expression::reference<T>>(u, t);
         }
         template<size_t N, typename U>
         auto operator >>(U & u, const arg_names::argument<N> & t)
         {
-            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, arg_names::argument<N>>(u, t); \
+            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, arg_names::argument<N>>(u, t);
         }
         template<typename Tag, typename C0Type, typename U>
         auto operator >>(U & u, const UnaryExpr<Tag, C0Type> & t)
         {
-            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, UnaryExpr<Tag, C0Type>>(u, t); \
+            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, UnaryExpr<Tag, C0Type>>(u, t);
         }
         template<typename Tag, typename C0Type, typename C1Type, typename U>
         auto operator >>(U & u, const BinaryExpr<Tag, C0Type, C1Type> & t)
         {
-            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, BinaryExpr<Tag, C0Type, C1Type>>(u, t); \
+            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, BinaryExpr<Tag, C0Type, C1Type>>(u, t);
         }
         template<typename Tag, typename C0Type, typename C1Type, typename C2Type, typename U>
         auto operator >>(U & u, const TernaryExpr<Tag, C0Type, C1Type, C2Type> & t)
         {
-            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, TernaryExpr<Tag, C0Type, C1Type, C2Type>>(u, t); \
+            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, TernaryExpr<Tag, C0Type, C1Type, C2Type>>(u, t);
         }
         template<typename Tag, typename C0Type, typename C1Type, typename C2Type, typename C3Type, typename U>
         auto operator >>(U & u, const FourArgExpr<Tag, C0Type, C1Type, C2Type, C3Type> & t)
         {
-            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, FourArgExpr<Tag, C0Type, C1Type, C2Type, C3Type>>(u, t); \
+            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, FourArgExpr<Tag, C0Type, C1Type, C2Type, C3Type>>(u, t);
         }
         template<typename Tag, typename... CTypes, typename U>
         auto operator >>(U & u, const NArgExpr<Tag, CTypes...> & t)
         {
-            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, NArgExpr<Tag, CTypes...>>(u, t); \
+            return BinaryExpr<expression::shift_left_tag, typename detail::ExprTraits<U>::MemberType, NArgExpr<Tag, CTypes...>>(u, t);
         }
 #undef DEFINE_BINARY_OP
 #undef DEFINE_BINARY_OP_REFONLY

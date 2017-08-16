@@ -14,7 +14,7 @@ int main()
     using namespace molly::arg_names;
     
     vector<int> vec{2, 4, 1, 6};
-    std::for_each(vec.begin(), vec.end(), cout << arg1 << ' ');
+    std::for_each(vec.begin(), vec.end(), (cout << val("Value: "), cout << arg1 << ' '));
     cout << std::endl;
     
     vector<std::string> vec2;
