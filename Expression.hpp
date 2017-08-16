@@ -567,6 +567,11 @@ namespace molly
     {
         return expression::terminal<T>(t);
     }
+    template<typename T>
+    expression::terminal<T> val(const expression::reference<T>& t)
+    {
+        return expression::terminal<T>(t());
+    }
     template<typename T, std::size_t N>
     expression::reference<const T[N]> val(T (&t)[N])
     {
@@ -577,6 +582,11 @@ namespace molly
     {
         return expression::reference<T>(t);
     }
+    template<typename T>
+    expression::reference<T> ref(expression::terminal<T>& t)
+    {
+        return expression::reference<T>(t());
+    }
     template<typename T, std::size_t N>
     expression::reference<const T[N]> ref(T (&t)[N])
     {
@@ -586,6 +596,11 @@ namespace molly
     expression::reference<const T> cref(const T& t)
     {
         return expression::reference<const T>(t);
+    }
+    template<typename T>
+    expression::reference<const T> cref(const expression::terminal<T>& t)
+    {
+        return expression::reference<const T>(t());
     }
     template<typename T, std::size_t N>
     expression::reference<const T[N]> cref(T (&t)[N])
