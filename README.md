@@ -49,3 +49,5 @@ Output:
                                                   ^^^^^^^^^^^^^^            ^^^^
                                                   need val                  don't need val
 ###### They are all in `molly` namespace!
+
+#### Note: this header require `C++14` supportsuch as passing `-std=c++14` to your compiler
