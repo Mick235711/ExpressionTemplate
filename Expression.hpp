@@ -65,6 +65,12 @@ namespace molly
     template<typename Tag, typename C0Type, typename C1Type, typename C2Type> struct TernaryExpr;
     template<typename Tag, typename C0Type, typename C1Type, typename C2Type, typename C3Type> struct FourArgExpr;
     template<typename Tag, typename... CTypes> struct NArgExpr;
+
+    namespace statement
+    {
+        template<typename Cond, typename Then> struct if_expr;
+        template<typename Cond, typename Then, typename Else> struct if_else_expr;
+    }
     
     namespace detail
     {
@@ -811,6 +817,16 @@ namespace molly
         {
             return BinaryExpr<expression::comma_tag, expression::terminal<T>, typename detail::ExprTraits<U>::MemberType>(t, u);
         }
+        template<typename Cond, typename Then, typename U>
+        auto operator ,(const statement::if_expr<Cond, Then>& t, const U& u)
+        {
+            return BinaryExpr<expression::comma_tag, statement::if_expr<Cond, Then>, typename detail::ExprTraits<U>::MemberType>(t, u);
+        }
+        template<typename Cond, typename Then, typename Else, typename U>
+        auto operator ,(const statement::if_else_expr<Cond, Then, Else>& t, const U& u)
+        {
+            return BinaryExpr<expression::comma_tag, statement::if_else_expr<Cond, Then, Else>, typename detail::ExprTraits<U>::MemberType>(t, u);
+        }
         template<typename T, typename U>
         auto operator ,(U & u, const expression::terminal<T> & t)
         {
@@ -850,6 +866,16 @@ namespace molly
         auto operator ,(U & u, const NArgExpr<Tag, CTypes...> & t)
         {
             return BinaryExpr<expression::comma_tag, typename detail::ExprTraits<U>::MemberType, NArgExpr<Tag, CTypes...>>(u, t);
+        }
+        template<typename Cond, typename Then, typename U>
+        auto operator ,(U& u, const statement::if_expr<Cond, Then>& t)
+        {
+            return BinaryExpr<expression::comma_tag, typename detail::ExprTraits<U>::MemberType, statement::if_expr<Cond, Then>>(u, t);
+        }
+        template<typename Cond, typename Then, typename Else, typename U>
+        auto operator ,(U& u, const statement::if_else_expr<Cond, Then, Else>& t)
+        {
+            return BinaryExpr<expression::comma_tag, typename detail::ExprTraits<U>::MemberType, statement::if_else_expr<Cond, Then, Else>>(u, t);
         }
         template<typename T, typename U>
         auto operator <<(const expression::reference<T> & t, const U & u)
@@ -1024,6 +1050,135 @@ namespace molly
                 typename detail::ExprTraits<C1Type>::MemberType,
                 typename detail::ExprTraits<C2Type>::MemberType>(cond, if_true, if_false);
         };
+    }
+
+    namespace statement
+    {
+        struct void_t {};
+
+        template<typename Cond, typename Then>
+        struct if_expr
+        {
+        public:
+            // typedefs
+            typedef Cond CondType;
+            typedef Then ThenType;
+            typedef if_expr<Cond, Then> ClassType;
+
+        private:
+            // members
+            CondType cond;
+            ThenType then;
+
+        public:
+            // constructors
+            if_expr(const CondType& cd, const ThenType& th)
+                : cond(cd), then(th), else_(cd, th)
+            {}
+
+            template<typename... Args>
+            void_t operator()(const Args &... args)
+            {
+                if (cond(args...))
+                    then(args...);
+                return void_t();
+            }
+
+        public:
+            // types
+            struct else_t
+            {
+            public:
+                // typedefs
+                typedef Cond CondType;
+                typedef Then ThenType;
+                typedef else_t ClassType;
+
+            private:
+                // members
+                CondType cond;
+                ThenType then;
+
+            public:
+                // constructors
+                else_t(const Cond& cd, const Then& th)
+                    : cond(cd), then(th)
+                {}
+
+                template<typename Else>
+                auto operator[](const Else& other) const
+                {
+                    return if_else_expr<Cond, Then, typename detail::ExprTraits<Else>::MemberType>(cond, then, other);
+                }
+            };
+
+        public:
+            // members
+            const else_t else_;
+        };
+
+        template<typename Cond, typename Then, typename Else>
+        struct if_else_expr
+        {
+        public:
+            // typedefs
+            typedef Cond CondType;
+            typedef Then ThenType;
+            typedef Else ElseType;
+            typedef if_else_expr<Cond, Then, Else> ClassType;
+
+        private:
+            // members
+            CondType cond;
+            ThenType then;
+            ElseType other;
+
+        public:
+            // constructors
+            if_else_expr(const CondType& cd, const ThenType& th, const ElseType& ot)
+                : cond(cd), then(th), other(ot)
+            {}
+
+            template<typename... Args>
+            void_t operator()(const Args &... args)
+            {
+                if (cond(args...))
+                    then(args...);
+                else other(args...);
+                return void_t();
+            }
+        };
+
+        template<typename Cond>
+        struct if_t
+        {
+        public:
+            // typedefs
+            typedef Cond CondType;
+            typedef if_t<Cond> ClassType;
+
+        private:
+            // members
+            CondType cond;
+
+        public:
+            // constructors
+            explicit if_t(const CondType& cd)
+                : cond(cd)
+            {}
+
+            template<typename Then>
+            auto operator[](const Then& then) const
+            {
+                return if_expr<Cond, typename detail::ExprTraits<Then>::MemberType>(cond, then);
+            }
+        };
+
+        template<typename Cond>
+        auto if_(const Cond& cd)
+        {
+            return if_t<typename detail::ExprTraits<Cond>::MemberType>(cd);
+        }
     }
 }
 
