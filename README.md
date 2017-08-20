@@ -19,9 +19,10 @@ ExpressionTemplate is a simple library which provide usages like [Boost::Lambda]
         using namespace molly;
         using namespace molly::operators;
         using namespace molly::arg_names;
+        using namespace molly::expression;
         
         vector<int> vec{2, 4, 1, 6};
-        std::for_each(vec.begin(), vec.end(), (cout << val("Value: "), cout << arg1 << ' '));
+        std::for_each(vec.begin(), vec.end(), (cout << val("Value: "), cout << arg1 << '\n'));
         cout << std::endl;
         
         vector<std::string> vec2;
@@ -31,6 +32,7 @@ ExpressionTemplate is a simple library which provide usages like [Boost::Lambda]
         cout << std::endl;
         return 0;
     }
+
 
 ------------------
 Output:
@@ -43,7 +45,7 @@ Output:
 
 `namespace operators`: provide operator overloading for write nature syntax
 
-`free functions`: `val`, `ref` and `cref`
+`namespace expression`: `val`, `ref` and `cref`
 
     std::for_each(vec.begin(), vec.end(), cout << val("Value: ") << arg1 << "\n");
                                                   ^^^^^^^^^^^^^^            ^^^^

@@ -12,6 +12,7 @@ int main()
     using namespace molly;
     using namespace molly::operators;
     using namespace molly::arg_names;
+    using namespace molly::expression;
     
     vector<int> vec{2, 4, 1, 6};
     std::for_each(vec.begin(), vec.end(), (cout << val("Value: "), cout << arg1 << '\n'));
