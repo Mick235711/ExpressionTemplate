@@ -1,9 +1,8 @@
 #include <iostream>
+#include <vector>
 #include "Expression.hpp"
 
-using std::cout;
-using std::endl;
-using std::ostream;
+using namespace std;
 
 int main()
 {
@@ -11,8 +10,12 @@ int main()
     using namespace tags;
     using namespace expressions;
     using namespace arg_names;
-    auto e = expr<shift_left_tag, literal<ostream&>, expr<binary_plus_tag, argument<1>, literal<int>>>
-        (ref_constant(cout), expr<binary_plus_tag, argument<1>, literal<int>>(_1, constant(2)));
-    e(3);
+    using namespace operators;
+    vector<int> vec1{2, 4, 1, -5, 2, 0, -1};
+    for_each(vec1.begin(), vec1.end(), cout << arg1 << ' ');
+    cout << endl;
+    for_each(vec1.begin(), vec1.end(), arg1 += 5);
+    for_each(vec1.begin(), vec1.end(), cout << arg1 << ' ');
+    cout << endl;
     return 0;
 }
