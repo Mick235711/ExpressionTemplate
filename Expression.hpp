@@ -9,6 +9,7 @@
 #include <utility>
 #include <cstddef>
 #include <type_traits>
+#include <array>
 
 #define DEF_MEMBER_OP(class_type, tagname, op) \
     template<typename U> \
@@ -19,6 +20,11 @@
 #define DEF_MEMBER_OPS(class_type) \
     DEF_MEMBER_OP(class_type, assign, =) \
     DEF_MEMBER_OP(class_type, subscript, []) \
+    template<typename U> \
+    decltype(auto) operator ,(U&& t) const \
+    { \
+        return expressions::expr<tags::comma_tag, class_type, traits::child_type<U>>(*this, t);\
+    }// \
     template<typename... U> \
     decltype(auto) operator ()(U&&... t) const \
     { \
@@ -155,16 +161,21 @@ namespace molly
     namespace expressions
     {
         template<typename T> class literal;
+        template<typename T, std::size_t N> class literal<T[N]>;
         template<typename tag, typename... children_t> class expr;
     }
     
     namespace arg_names
     {
         template<std::size_t I> class argument;
+        template<> class argument<1>;
     }
     
     namespace traits
     {
+        template<typename T>
+        using remove_anything = std::remove_cv_t<std::remove_reference_t<std::remove_all_extents_t<T>>>;
+
         // is_expr
         template<typename T> struct is_expr : std::false_type {};
         template<typename T> struct is_expr<expressions::literal<T>> : std::true_type {};
@@ -173,7 +184,7 @@ namespace molly
         struct is_expr<expressions::expr<tag, children_t...>> : std::true_type {};
         
         template<typename T>
-        static constexpr bool is_expr_v = is_expr<T>::value;
+        static constexpr bool is_expr_v = is_expr<remove_anything<T>>::value;
         
         template<typename T>
         using child_type = std::conditional_t<is_expr_v<T>, T, expressions::literal<T>>;
@@ -194,10 +205,10 @@ namespace molly
             
             // functions
             literal(const value_type& v) : value(v) {}
-            
-            const T& get() const { return value; }
-            T& get() { return value; }
-            
+
+            const value_type& get() const { return value; }
+            value_type& get() { return value; }
+
             template<typename... Args>
             decltype(auto) operator()(Args&&...)
             {
@@ -205,6 +216,31 @@ namespace molly
             }
             
             DEF_MEMBER_OPS(literal<T>)
+        };
+
+        template<typename T, std::size_t N>
+        class literal<T[N]>
+        {
+            // members
+            T* value;
+
+        public:
+            // typedefs
+            typedef T* value_type;
+
+            // functions
+            literal(const value_type& v) : value(v) {}
+
+            const value_type& get() const { return value; }
+            value_type& get() { return value; }
+
+            template<typename... Args>
+            decltype(auto) operator()(Args&&...)
+            {
+                return value;
+            }
+
+            DEF_MEMBER_OPS(literal<T[N]>)
         };
         
         // expr
@@ -260,6 +296,11 @@ namespace molly
         {
             return literal<T>(t);
         }
+        template<typename T, std::size_t N>
+        decltype(auto) constant(T (&t)[N])
+        {
+            return literal<T[N]>(t);
+        };
         
         template<typename T>
         decltype(auto) ref_constant(T& t)
@@ -286,7 +327,7 @@ namespace molly
             
             // functions
             template<typename Arg1, typename... Args>
-            decltype(auto) operator()(Arg1&&, Args&&... args)
+            decltype(auto) operator()(Arg1&&, Args&&... args) const
             {
                 return argument<I - 1>()(std::forward<Args>(args)...);
             }
@@ -303,7 +344,7 @@ namespace molly
             
             // functions
             template<typename Arg1, typename... Args>
-            decltype(auto) operator()(Arg1&& arg1, Args&&...)
+            decltype(auto) operator()(Arg1&& arg1, Args&&...) const
             {
                 return std::forward<Arg1>(arg1);
             }
@@ -380,7 +421,7 @@ namespace molly
 #undef DEF_UNARY_OP
 
 #define DEF_BINARY_OP(tagname, op) \
-        template<typename T, typename U> \
+        template<typename T, typename U, typename = std::enable_if_t<!traits::is_expr_v<T>>> \
         decltype(auto) operator op(const expressions::literal<T>& t, U&& u) \
         { \
             return expressions::expr<tags::tagname##_tag, expressions::literal<T>, traits::child_type<U>>(t, u); \
@@ -395,7 +436,7 @@ namespace molly
         { \
             return expressions::expr<tags::tagname##_tag, expressions::expr<tag, child_type...>, traits::child_type<U>>(t, u); \
         } \
-        template<typename T, typename U, typename = std::enable_if_t<!traits::is_expr_v<U>>> \
+        template<typename T, typename U, typename = std::enable_if_t<!traits::is_expr_v<T> && !traits::is_expr_v<U>>> \
         decltype(auto) operator op(U&& t, const expressions::literal<T>& u) \
         { \
             return expressions::expr<tags::tagname##_tag, traits::child_type<U>, expressions::literal<T>>(t, u); \
