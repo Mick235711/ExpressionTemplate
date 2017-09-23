@@ -12,7 +12,7 @@
 
 #define DEF_MEMBER_OP(class_type, tagname, op) \
     template<typename U> \
-    decltype(auto) operator op(U&& t) \
+    decltype(auto) operator op(U&& t) const \
     { \
         return expressions::expr<tags::tagname##_tag, class_type, traits::child_type<U>>(*this, t);\
     }
@@ -20,7 +20,7 @@
     DEF_MEMBER_OP(class_type, assign, =) \
     DEF_MEMBER_OP(class_type, subscript, []) \
     template<typename... U> \
-    decltype(auto) operator ()(U&&... t) \
+    decltype(auto) operator ()(U&&... t) const \
     { \
         return expressions::expr<tags::function_tag, class_type, traits::child_type<U>...>(*this, std::forward<U>(t)...);\
     }
@@ -307,6 +307,8 @@ namespace molly
             {
                 return std::forward<Arg1>(arg1);
             }
+
+            DEF_MEMBER_OPS(argument<1>)
         };
         
         // names
