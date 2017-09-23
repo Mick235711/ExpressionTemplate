@@ -39,7 +39,7 @@ namespace molly
 #define DEF_UNARY_TAG(tagname, op) \
         struct tagname##_tag \
         { \
-            enum { Arity = 1 }; \
+            enum { arity = 1 }; \
             template<typename T> \
             decltype(auto) operator()(T&& t) \
             { \
@@ -55,7 +55,7 @@ namespace molly
         DEF_UNARY_TAG(pre_decrement, --);
         struct post_increment_tag
         {
-            enum { Arity = 1 };
+            enum { arity = 1 };
             template<typename T>
             decltype(auto) operator()(T&& t)
             {
@@ -64,7 +64,7 @@ namespace molly
         };
         struct post_decrement_tag
         {
-            enum { Arity = 1 };
+            enum { arity = 1 };
             template<typename T>
             decltype(auto) operator()(T&& t)
             {
@@ -79,7 +79,7 @@ namespace molly
 #define DEF_BINARY_TAG(tagname, op) \
         struct tagname##_tag \
         { \
-            enum { Arity = 2 }; \
+            enum { arity = 2 }; \
             template<typename T, typename U> \
             decltype(auto) operator()(T&& t, U&& u) \
             { \
@@ -118,7 +118,7 @@ namespace molly
         DEF_BINARY_TAG(not_equal, !=);
         struct subscript_tag
         {
-            enum { Arity = 2 };
+            enum { arity = 2 };
             template<typename T, typename U>
             decltype(auto) operator()(T&& t, U&& u)
             {
@@ -128,7 +128,7 @@ namespace molly
         DEF_BINARY_TAG(member_pointer_access, ->*);
         struct comma_tag
         {
-            enum { Arity = 2 };
+            enum { arity = 2 };
             template<typename T, typename U>
             decltype(auto) operator()(T&& t, U&& u)
             {
@@ -140,7 +140,7 @@ namespace molly
         
         struct ternary_tag
         {
-            enum { Arity = 3 };
+            enum { arity = 3 };
             template<typename T, typename U, typename V>
             decltype(auto) operator()(T&& t, U&& u, V&& v)
             {
@@ -254,7 +254,7 @@ namespace molly
             typedef expr<tag, children_t...> class_type;
         
             // enums
-            enum { Arity = sizeof...(children_t) };
+            enum { arity = sizeof...(children_t) };
     
         private:
             // members
@@ -269,6 +269,10 @@ namespace molly
             }
     
         public:
+#ifdef MOLLY_CHECK_ARITY
+            static_assert(arity == tag::arity);
+#endif
+            
             // functions
             explicit expr(const children_t&... child)
                 : children(child...)
@@ -283,7 +287,7 @@ namespace molly
             template<typename... Args>
             decltype(auto) operator()(Args&&... args)
             {
-                typedef std::make_index_sequence<Arity> Seq;
+                typedef std::make_index_sequence<arity> Seq;
                 return operator_impl<Args...>(Seq(), std::forward<Args>(args)...);
             }
             
@@ -483,6 +487,18 @@ namespace molly
         DEF_BINARY_OP(member_pointer_access, ->*);
         
 #undef DEF_BINARY_OP
+        
+        template<typename T, typename U, typename V>
+        decltype(auto) if_else(T&& cond, U&& then, V&& other)
+        {
+            return expressions::expr<tags::ternary_tag, traits::child_type<T>, traits::child_type<U>, traits::child_type<V>>(cond, then, other);
+        }
+
+        template<typename T, typename... Args>
+        decltype(auto) eval_func(T&& fun, Args&&... args)
+        {
+            return expressions::expr<tags::function_tag, traits::child_type<T>, traits::child_type<Args>...>(fun, std::forward<Args>(args)...);
+        }
     }
 }
 
