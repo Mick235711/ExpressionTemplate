@@ -632,6 +632,38 @@ namespace molly
             return if_t<cond_t>(cond);
         }
     }
+
+    template<typename cond_t, typename cases_t>
+    class switch_type
+    {
+    public:
+        // typedefs
+        typedef cond_t cond_type;
+        typedef cases_t cases_type;
+        typedef switch_type<cond_t, cases_t> class_type;
+
+    private:
+        // members
+        cond_type cond;
+        cases_type cases;
+
+    public:
+        // functions
+        switch_type(const cond_type& c, const cases_type& cs)
+            : cond(c), cases(cs)
+        {}
+
+        template<typename... Args>
+        decltype(auto) operator()(Args&&... args)
+        {
+            cases.execute(cond(std::forward<Args>(args)...));
+            return *this;
+        }
+    };
+
+    template<typename... cases_t>
+    class cases_type
+    {};
 }
 
 #undef DEF_MEMBER_COMMA_OP
