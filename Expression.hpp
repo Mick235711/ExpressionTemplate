@@ -17,14 +17,16 @@
     { \
         return expressions::expr<tags::tagname##_tag, class_type, traits::child_type<U>>(*this, t);\
     }
-#define DEF_MEMBER_OPS(class_type) \
-    DEF_MEMBER_OP(class_type, assign, =) \
-    DEF_MEMBER_OP(class_type, subscript, []) \
+#define DEF_MEMBER_COMMA_OP(class_type) \
     template<typename U> \
     decltype(auto) operator ,(U&& t) const \
     { \
         return expressions::expr<tags::comma_tag, class_type, traits::child_type<U>>(*this, t);\
-    }// \
+    }
+#define DEF_MEMBER_OPS(class_type) \
+    DEF_MEMBER_OP(class_type, assign, =) \
+    DEF_MEMBER_OP(class_type, subscript, []) \
+    DEF_MEMBER_COMMA_OP(class_type)// \
     template<typename... U> \
     decltype(auto) operator ()(U&&... t) const \
     { \
@@ -522,6 +524,7 @@ namespace molly
             typedef cond_t cond_type;
             typedef then_t then_type;
             typedef else_t else_type;
+            typedef if_else_type<cond_t, then_t, else_t> class_type;
 
         private:
             // members
@@ -543,6 +546,8 @@ namespace molly
                 else _else(std::forward<Args>(args)...);
                 return *this;
             }
+
+            DEF_MEMBER_COMMA_OP(class_type);
         };
 
         template<typename cond_t, typename then_t>
@@ -552,6 +557,7 @@ namespace molly
             // typedefs
             typedef cond_t cond_type;
             typedef then_t then_type;
+            typedef if_type<cond_t, then_t> class_type;
 
         private:
             // types
@@ -592,6 +598,8 @@ namespace molly
                     else_.then(std::forward<Args>(args)...);
                 return *this;
             }
+
+            DEF_MEMBER_COMMA_OP(class_type);
         };
 
         template<typename cond_t>
@@ -626,6 +634,7 @@ namespace molly
     }
 }
 
+#undef DEF_MEMBER_COMMA_OP
 #undef DEF_MEMBER_OP
 #undef DEF_MEMBER_OPS
 
