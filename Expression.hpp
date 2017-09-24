@@ -170,6 +170,12 @@ namespace molly
         template<std::size_t I> class argument;
         template<> class argument<1>;
     }
+
+    namespace statements
+    {
+        template<typename cond_type, typename then_type, typename else_type> class if_else_type;
+        template<typename cond_type, typename then_type> class if_type;
+    }
     
     namespace traits
     {
@@ -182,6 +188,10 @@ namespace molly
         template<std::size_t I> struct is_expr<arg_names::argument<I>> : std::true_type {};
         template<typename tag, typename... children_t>
         struct is_expr<expressions::expr<tag, children_t...>> : std::true_type {};
+        template<typename cond_type, typename then_type>
+        struct is_expr<statements::if_type<cond_type, then_type>> : std::true_type {};
+        template<typename cond_type, typename then_type, typename else_type>
+        struct is_expr<statements::if_else_type<cond_type, then_type, else_type>> : std::true_type {};
         
         template<typename T>
         static constexpr bool is_expr_v = is_expr<remove_anything<T>>::value;
@@ -272,7 +282,7 @@ namespace molly
 #ifdef MOLLY_CHECK_ARITY
             static_assert(arity == tag::arity);
 #endif
-            
+
             // functions
             explicit expr(const children_t&... child)
                 : children(child...)
@@ -498,6 +508,120 @@ namespace molly
         decltype(auto) eval_func(T&& fun, Args&&... args)
         {
             return expressions::expr<tags::function_tag, traits::child_type<T>, traits::child_type<Args>...>(fun, std::forward<Args>(args)...);
+        }
+    }
+
+    namespace statements
+    {
+        // if & if-else
+        template<typename cond_t, typename then_t, typename else_t>
+        class if_else_type
+        {
+        public:
+            // typedefs
+            typedef cond_t cond_type;
+            typedef then_t then_type;
+            typedef else_t else_type;
+
+        private:
+            // members
+            cond_type cond;
+            then_type then;
+            else_type _else;
+
+        public:
+            // functions
+            if_else_type(const cond_type& c, const then_type& t, const else_type& e)
+                : cond(c), then(t), _else(e)
+            {}
+
+            template<typename... Args>
+            decltype(auto) operator()(Args&&... args)
+            {
+                if (cond(std::forward<Args>(args)...))
+                    then(std::forward<Args>(args)...);
+                else _else(std::forward<Args>(args)...);
+                return *this;
+            }
+        };
+
+        template<typename cond_t, typename then_t>
+        class if_type
+        {
+        public:
+            // typedefs
+            typedef cond_t cond_type;
+            typedef then_t then_type;
+
+        private:
+            // types
+            class else_t
+            {
+                // members
+                cond_type cond;
+                then_type then;
+
+            public:
+                // functions & friends
+                friend class if_type;
+
+                else_t(const cond_type& c, const then_type& t)
+                    : cond(c), then(t)
+                {}
+
+                template<typename else_type>
+                decltype(auto) operator[](else_type&& _else)
+                {
+                    return if_else_type<cond_type, then_type, else_type>(cond, then, _else);
+                }
+            };
+
+        public:
+            // members
+            else_t else_;
+
+            // functions
+            if_type(const cond_type& c, const then_type& t)
+                : else_(c, t)
+            {}
+
+            template<typename... Args>
+            decltype(auto) operator()(Args&&... args)
+            {
+                if (else_.cond(std::forward<Args>(args)...))
+                    else_.then(std::forward<Args>(args)...);
+                return *this;
+            }
+        };
+
+        template<typename cond_t>
+        class if_t
+        {
+        public:
+            // typedefs
+            typedef cond_t cond_type;
+
+        private:
+            // members
+            cond_type cond;
+
+        public:
+            // functions
+            explicit if_t(const cond_type& c)
+                : cond(c)
+            {}
+
+            template<typename then_t>
+            decltype(auto) operator[](then_t&& then)
+            {
+                return if_type<cond_type, then_t>(cond, then);
+            }
+        };
+
+        template<typename cond_t>
+        decltype(auto) if_(cond_t&& cond)
+        {
+            return if_t<cond_t>(cond);
         }
     }
 }
