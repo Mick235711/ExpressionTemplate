@@ -7,6 +7,7 @@ ExpressionTemplate is a simple library which provide usages like [Boost::Phoenix
 ## Usage
     #include <iostream>
     #include <vector>
+    #include <algorithm>
     #include "Expression.hpp"
     
     using namespace std;
@@ -18,12 +19,20 @@ ExpressionTemplate is a simple library which provide usages like [Boost::Phoenix
         using namespace expressions;
         using namespace arg_names;
         using namespace operators;
-        vector<int> vec1{2, 4, 1, -5, 2, 0, -1};
+        using namespace statements;
+        vector<int> vec1{2, 4, 1, -5, 2, -6, 0, -1};
         for_each(vec1.begin(), vec1.end(), cout << arg1 << ' ');
         cout << endl;
         for_each(vec1.begin(), vec1.end(), (
             cout << constant("Before: ") << arg1 << '\n',
-            arg1 = arg1 + 5,
+            if_(arg1 % 2 == 0)
+            [
+                arg1 = arg1 + 5
+            ].
+            else_
+            [
+                arg1 = arg1 - 5
+            ],
             cout << constant("After: ") << arg1 << '\n'
         ));
         for_each(vec1.begin(), vec1.end(), cout << arg1 << ' ');
@@ -31,25 +40,28 @@ ExpressionTemplate is a simple library which provide usages like [Boost::Phoenix
         return 0;
     }
 
+
 ------------------
 Output:
 
-    2 4 1 -5 2 0 -1 
-    Before: 2
-    After: 7
-    Before: 4
-    After: 9
-    Before: 1
-    After: 6
-    Before: -5
-    After: 0
-    Before: 2
-    After: 7
-    Before: 0
-    After: 5
-    Before: -1
+    2 4 1 -5 2 -6 0 -1
+    After: 2
+    Before: 7
     After: 4
-    7 9 6 0 7 5 4  
+    Before: 9
+    After: 1
+    Before: -4
+    After: -5
+    Before: -10
+    After: 2
+    Before: 7
+    After: -6
+    Before: -1
+    After: 0
+    Before: 5
+    After: -1
+    Before: -6
+    7 9 -4 -10 7 -1 5 -6
     
 ## Feature
 `namespace arg_names`: provide arg1 to arg5 for argument
