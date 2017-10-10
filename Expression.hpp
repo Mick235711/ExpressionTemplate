@@ -177,6 +177,7 @@ namespace molly
     {
         template<typename cond_type, typename then_type, typename else_type> class if_else_type;
         template<typename cond_type, typename then_type> class if_type;
+        template<typename cond_type, typename loop_type> class while_type;
     }
     
     namespace traits
@@ -194,6 +195,8 @@ namespace molly
         struct is_expr<statements::if_type<cond_type, then_type>> : std::true_type {};
         template<typename cond_type, typename then_type, typename else_type>
         struct is_expr<statements::if_else_type<cond_type, then_type, else_type>> : std::true_type {};
+        template<typename cond_type, typename loop_type>
+        struct is_expr<statements::while_type<cond_type, loop_type>> : std::true_type {};
         
         template<typename T>
         static constexpr bool is_expr_v = is_expr<remove_anything<T>>::value;
@@ -631,39 +634,68 @@ namespace molly
         {
             return if_t<cond_t>(cond);
         }
-    }
-
-    template<typename cond_t, typename cases_t>
-    class switch_type
-    {
-    public:
-        // typedefs
-        typedef cond_t cond_type;
-        typedef cases_t cases_type;
-        typedef switch_type<cond_t, cases_t> class_type;
-
-    private:
-        // members
-        cond_type cond;
-        cases_type cases;
-
-    public:
-        // functions
-        switch_type(const cond_type& c, const cases_type& cs)
-            : cond(c), cases(cs)
-        {}
-
-        template<typename... Args>
-        decltype(auto) operator()(Args&&... args)
+        
+        template<typename cond_t, typename loop_t>
+        class while_type
         {
-            cases.execute(cond(std::forward<Args>(args)...));
-            return *this;
+        public:
+            // typedefs
+            typedef cond_t cond_type;
+            typedef loop_t loop_type;
+            typedef while_type<cond_t, loop_t> class_type;
+            
+        private:
+            // members
+            cond_type cond;
+            loop_type loop;
+            
+        public:
+            // functions
+            while_type(const cond_type& c, const loop_type& l)
+                : cond(c), loop(l)
+            {}
+            
+            template<typename... Args>
+            decltype(auto) operator()(Args&&... args)
+            {
+                while (cond(std::forward<Args>(args)...))
+                    loop(std::forward<Args>(args)...);
+                return *this;
+            }
+            
+            DEF_MEMBER_COMMA_OP(class_type);
+        };
+    
+        template<typename cond_t>
+        class while_t
+        {
+        public:
+            // typedefs
+            typedef cond_t cond_type;
+    
+        private:
+            // members
+            cond_type cond;
+    
+        public:
+            // functions
+            explicit while_t(const cond_type& c)
+                : cond(c)
+            {}
+        
+            template<typename loop_t>
+            decltype(auto) operator[](loop_t&& loop)
+            {
+                return while_type<cond_type, loop_t>(cond, loop);
+            }
+        };
+    
+        template<typename cond_t>
+        decltype(auto) while_(cond_t&& cond)
+        {
+            return while_t<cond_t>(cond);
         }
-    };
-
-    template<typename... cases_t>
-    class cases_type
-    {};
+    }
 }
 
 #undef DEF_MEMBER_COMMA_OP
