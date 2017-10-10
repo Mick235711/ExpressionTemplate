@@ -37,6 +37,23 @@ ExpressionTemplate is a simple library which provide usages like [Boost::Phoenix
         ));
         for_each(vec1.begin(), vec1.end(), cout << arg1 << ' ');
         cout << endl;
+        vector<int> vec2{4, 2, 26, 27, 1, 7, 3, 8, 10, 15, 20, 30, 40, 35, 29, 46};
+        for_each(vec2.begin(), vec2.end(), (
+            cout << constant("Sequence for ") << arg1 << ':',
+            while_(arg1 != 1)
+            [
+                cout << constant(' ') << arg1,
+                if_(arg1 % 2 == 0)
+                [
+                    arg1 /= 2
+                ].
+                else_
+                [
+                    arg1 = arg1 * 3 + 1
+                ]
+            ],
+            cout << constant(' ') << arg1 << '\n'
+        ));
         return 0;
     }
 
@@ -44,24 +61,40 @@ ExpressionTemplate is a simple library which provide usages like [Boost::Phoenix
 ------------------
 Output:
 
-    2 4 1 -5 2 -6 0 -1
-    After: 2
-    Before: 7
-    After: 4
-    Before: 9
-    After: 1
-    Before: -4
-    After: -5
-    Before: -10
-    After: 2
-    Before: 7
-    After: -6
-    Before: -1
-    After: 0
-    Before: 5
-    After: -1
+    2 4 1 -5 2 -6 0 -1 
+    Before: 2
+    After: 7
+    Before: 4
+    After: 9
+    Before: 1
+    After: -4
+    Before: -5
+    After: -10
+    Before: 2
+    After: 7
     Before: -6
-    7 9 -4 -10 7 -1 5 -6
+    After: -1
+    Before: 0
+    After: 5
+    Before: -1
+    After: -6
+    7 9 -4 -10 7 -1 5 -6 
+    Sequence for 4: 4 2 1
+    Sequence for 2: 2 1
+    Sequence for 26: 26 13 40 20 10 5 16 8 4 2 1
+    Sequence for 27: 27 82 41 124 62 31 94 47 142 71 214 107 322 161 484 242 121 364 182 91 274 137 412 206 103 310 155 466 233 700 350 175 526 263 790 395 1186 593 1780 890 445 1336 668 334 167 502 251 754 377 1132 566 283 850 425 1276 638 319 958 479 1438 719 2158 1079 3238 1619 4858 2429 7288 3644 1822 911 2734 1367 4102 2051 6154 3077 9232 4616 2308 1154 577 1732 866 433 1300 650 325 976 488 244 122 61 184 92 46 23 70 35 106 53 160 80 40 20 10 5 16 8 4 2 1
+    Sequence for 1: 1
+    Sequence for 7: 7 22 11 34 17 52 26 13 40 20 10 5 16 8 4 2 1
+    Sequence for 3: 3 10 5 16 8 4 2 1
+    Sequence for 8: 8 4 2 1
+    Sequence for 10: 10 5 16 8 4 2 1
+    Sequence for 15: 15 46 23 70 35 106 53 160 80 40 20 10 5 16 8 4 2 1
+    Sequence for 20: 20 10 5 16 8 4 2 1
+    Sequence for 30: 30 15 46 23 70 35 106 53 160 80 40 20 10 5 16 8 4 2 1
+    Sequence for 40: 40 20 10 5 16 8 4 2 1
+    Sequence for 35: 35 106 53 160 80 40 20 10 5 16 8 4 2 1
+    Sequence for 29: 29 88 44 22 11 34 17 52 26 13 40 20 10 5 16 8 4 2 1
+    Sequence for 46: 46 23 70 35 106 53 160 80 40 20 10 5 16 8 4 2 1
     
 ## Feature
 `namespace arg_names`: provide arg1 to arg5 for argument
