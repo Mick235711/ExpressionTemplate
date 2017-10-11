@@ -134,7 +134,7 @@ namespace molly
             template<typename T, typename U>
             decltype(auto) operator()(T&& t, U&& u)
             {
-                return t, u;
+                return /*t, */u;
             }
         };
         
@@ -178,6 +178,7 @@ namespace molly
         template<typename cond_type, typename then_type, typename else_type> class if_else_type;
         template<typename cond_type, typename then_type> class if_type;
         template<typename cond_type, typename loop_type> class while_type;
+        template<typename cond_type, typename loop_type> class do_while_type;
     }
     
     namespace traits
@@ -197,6 +198,8 @@ namespace molly
         struct is_expr<statements::if_else_type<cond_type, then_type, else_type>> : std::true_type {};
         template<typename cond_type, typename loop_type>
         struct is_expr<statements::while_type<cond_type, loop_type>> : std::true_type {};
+        template<typename cond_type, typename loop_type>
+        struct is_expr<statements::do_while_type<cond_type, loop_type>> : std::true_type {};
         
         template<typename T>
         static constexpr bool is_expr_v = is_expr<remove_anything<T>>::value;
@@ -695,6 +698,77 @@ namespace molly
         {
             return while_t<cond_t>(cond);
         }
+    
+        template<typename cond_t, typename loop_t>
+        class do_while_type
+        {
+        public:
+            // typedefs
+            typedef cond_t cond_type;
+            typedef loop_t loop_type;
+            typedef do_while_type<cond_t, loop_t> class_type;
+    
+        private:
+            // members
+            cond_type cond;
+            loop_type loop;
+    
+        public:
+            // functions
+            do_while_type(const cond_type& c, const loop_type& l)
+                : cond(c), loop(l)
+            {}
+        
+            template<typename... Args>
+            decltype(auto) operator()(Args&&... args)
+            {
+                do
+                {
+                    loop(std::forward<Args>(args)...);
+                }
+                while (cond(std::forward<Args>(args)...));
+                return *this;
+            }
+        
+            DEF_MEMBER_COMMA_OP(class_type);
+        };
+        
+        template<typename loop_t>
+        class do_while_t
+        {
+        public:
+            // typedefs
+            typedef loop_t loop_type;
+            
+        private:
+            // members
+            loop_type loop;
+            
+        public:
+            // functions
+            explicit do_while_t(const loop_type& l)
+                : loop(l)
+            {}
+            
+            template<typename cond_t>
+            decltype(auto) while_(cond_t&& cond)
+            {
+                return do_while_type<cond_t, loop_type>(cond, loop);
+            }
+        };
+        
+        class do_t
+        {
+        public:
+            // functions
+            template<typename loop_t>
+            decltype(auto) operator[](loop_t&& loop) const
+            {
+                return do_while_t<loop_t>(loop);
+            }
+        };
+        
+        const do_t do_ = {};
     }
 }
 
