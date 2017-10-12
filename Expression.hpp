@@ -769,6 +769,77 @@ namespace molly
         };
         
         const do_t do_ = {};
+    
+        template<typename init_t, typename cond_t, typename step_t, typename loop_t>
+        class for_type
+        {
+        public:
+            // typedefs
+            typedef init_t init_type;
+            typedef cond_t cond_type;
+            typedef step_t step_type;
+            typedef loop_t loop_type;
+            typedef for_type<init_t, cond_t, step_t, loop_t> class_type;
+    
+        private:
+            // members
+            init_type init;
+            cond_type cond;
+            step_type step;
+            loop_type loop;
+    
+        public:
+            // functions
+            for_type(const init_type& i, const cond_type& c, const step_type& s, const loop_type& l)
+                : init(i), cond(c), step(s), loop(l)
+            {}
+        
+            template<typename... Args>
+            decltype(auto) operator()(Args&&... args)
+            {
+                for (init(std::forward<Args>(args)...);
+                     cond(std::forward<Args>(args)...);
+                     step(std::forward<Args>(args)...))
+                    loop(std::forward<Args>(args)...);
+                return *this;
+            }
+        
+            DEF_MEMBER_COMMA_OP(class_type);
+        };
+    
+        template<typename init_t, typename cond_t, typename step_t>
+        class for_t
+        {
+        public:
+            // typedefs
+            typedef init_t init_type;
+            typedef cond_t cond_type;
+            typedef step_t step_type;
+    
+        private:
+            // members
+            init_type init;
+            cond_type cond;
+            step_type step;
+    
+        public:
+            // functions
+            for_t(const init_type& i, const cond_type& c, const step_type& s)
+                : init(i), cond(c), step(s)
+            {}
+        
+            template<typename loop_t>
+            decltype(auto) operator[](loop_t&& loop)
+            {
+                return for_type<init_type, cond_type, step_type, loop_t>(init, cond, step, loop);
+            }
+        };
+    
+        template<typename init_t, typename cond_t, typename step_t>
+        decltype(auto) for_(init_t&& init, cond_t&& cond, step_t&& step)
+        {
+            return for_t<init_t, cond_t, step_t>(init, cond, step);
+        }
     }
 }
 
